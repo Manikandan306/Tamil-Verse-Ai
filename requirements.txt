@@ -1,0 +1,20 @@
+pip install speechrecognition gtts playsound googletrans
+pip install playsound==1.2.2
+pip install pydub
+Download FFmpeg from here:
+👉 https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.7z
+Add FFmpeg to System PATH:
+Extract koduthutu location c drive koduthutu okey kodunga
+
+Search for "Environment Variables" in Windows.
+Click Environment Variables → Under System Variables, find Path → Click Edit.
+Click New → Add this path:
+      C:\ffmpeg\ffmpeg-7.1.1-full_build\bin
+Click OK and close everything.
+Restart your computer to apply changes.
+
+Verify FFmpeg is installed by running this command in PowerShell or Command Prompt:
+ffmpeg -version
+
+
+Then now run main.py
