@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tamil AI Voice Assistant</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1a1a1a;
+            --secondary: #2d2d2d;
+            --accent: #00ff88;
+            --text: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--primary);
+            color: var(--text);
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .mic-container {
+            display: flex;
+            justify-content: center;
+            margin: 2rem 0;
+        }
+
+        .mic-btn {
+            background: linear-gradient(45deg, var(--accent), #00ccff);
+            border: none;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        }
+
+        .mic-btn.listening {
+            animation: pulse 1.5s infinite;
+        }
+
+        .mic-btn i {
+            font-size: 1.8rem;
+            color: var(--text);
+        }
+
+        .chat-area {
+            background: var(--secondary);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .message {
+            padding: 1rem;
+            margin: 0.5rem 0;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            animation: slideIn 0.3s ease;
+        }
+
+        .user-message {
+            background: rgba(0, 255, 136, 0.1);
+            border-left: 4px solid var(--accent);
+        }
+
+        .ai-message {
+            background: rgba(0, 204, 255, 0.1);
+            border-left: 4px solid #00ccff;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>தமிழ் AI உதவி</h1>
+            <p>மைக்ரோஃபோன் பொத்தானை அழுத்தி பேசவும்</p>
+        </div>
+
+        <div class="mic-container">
+            <button class="mic-btn" id="micButton">
+                <i class="fas fa-microphone"></i>
+            </button>
+        </div>
+
+        <div class="chat-area" id="chatArea">
+            <div class="message ai-message">
+                வணக்கம்! நான் உங்கள் தமிழ் AI உதவியாளன். எப்படி உதவலாம்?
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const micButton = document.getElementById('micButton');
+        const chatArea = document.getElementById('chatArea');
+        let isListening = false;
+
+        // Web Speech API Setup
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ta-IN';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onspeechstart = () => {
+            micButton.classList.add('listening');
+        };
+
+        recognition.onspeechend = () => {
+            recognition.stop();
+        };
+
+        recognition.onresult = async (event) => {
+            const transcript = event.results[0][0].transcript.trim();
+            addMessage(transcript, 'user');
+            
+            try {
+                const response = await processCommand(transcript);
+                addMessage(response, 'ai');
+                await speakResponse(response);
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('பதில் பெறுவதில் பிழை ஏற்பட்டுள்ளது.', 'ai');
+            }
+        };
+
+        recognition.onerror = (event) => {
+            console.error('Recognition error:', event.error);
+            stopRecognition();
+            addMessage('பேச்சு அங்கீகாரத்தில் பிழை ஏற்பட்டுள்ளது.', 'ai');
+        };
+
+        micButton.addEventListener('click', () => {
+            if (!isListening) {
+                recognition.start();
+            } else {
+                recognition.stop();
+            }
+        });
+
+        function stopRecognition() {
+            isListening = false;
+            micButton.classList.remove('listening');
+        }
+
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', `${sender}-message`);
+            messageDiv.textContent = text;
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        async function processCommand(text) {
+            try {
+                const response = await fetch('http://localhost:5000/get-response', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                return data.response;
+            } catch (error) {
+                console.error('Error:', error);
+                return 'மன்னிக்கவும், பதில் பெறுவதில் பிழை ஏற்பட்டுள்ளது.';
+            }
+        }
+
+        async function speakResponse(text) {
+    try {
+        const response = await fetch('http://localhost:5000/text-to-speech', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ text: text })
+        });
+
+        if (!response.ok) {
+            throw new Error(`TTS Error: ${response.status}`);
+        }
+
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audioElement = new Audio(audioUrl);
+        
+        // Add error handling for audio playback
+        audioElement.addEventListener('error', (e) => {
+            console.error('Audio playback error:', e);
+            addMessage('ஆடியோ இயக்கத்தில் பிழை ஏற்பட்டுள்ளது', 'ai');
+        });
+        
+        await audioElement.play();
+    } catch (error) {
+        console.error('TTS Error:', error);
+        addMessage('ஆடியோ உருவாக்கத்தில் பிழை ஏற்பட்டுள்ளது', 'ai');
+    }
+}
+
+        // Initial greeting
+        window.addEventListener('load', () => {
+            speakResponse('வணக்கம்! நான் உங்கள் தமிழ் AI உதவியாளன். எப்படி உதவலாம்?');
+        });
+    </script>
+</body>
+</html>
